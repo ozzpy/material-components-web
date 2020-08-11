@@ -72,16 +72,63 @@ export class MDCTopAppBarFoundation extends MDCTopAppBarBaseFoundation {
   constructor(adapter?: Partial<MDCTopAppBarAdapter>) {
     super(adapter);
 
-    this.lastScrollPosition_ = this.adapter_.getViewportScrollY();
-    this.topAppBarHeight_ = this.adapter_.getTopAppBarHeight();
-
-    this.scrollHandler_ = () => this.topAppBarScrollHandler_();
-    this.resizeHandler_ = () => this.topAppBarResizeHandler_();
+    this.lastScrollPosition_ = this.adapter.getViewportScrollY();
+    this.topAppBarHeight_ = this.adapter.getTopAppBarHeight();
   }
 
   destroy() {
     super.destroy();
-    this.adapter_.setStyle('top', '');
+    this.adapter.setStyle('top', '');
+  }
+
+  /**
+   * Scroll handler for the default scroll behavior of the top app bar.
+   * @override
+   */
+  handleTargetScroll() {
+    const currentScrollPosition = Math.max(this.adapter.getViewportScrollY(), 0);
+    const diff = currentScrollPosition - this.lastScrollPosition_;
+    this.lastScrollPosition_ = currentScrollPosition;
+
+    // If the window is being resized the lastScrollPosition_ needs to be updated but the
+    // current scroll of the top app bar should stay in the same position.
+    if (!this.isCurrentlyBeingResized_) {
+      this.currentAppBarOffsetTop_ -= diff;
+
+      if (this.currentAppBarOffsetTop_ > 0) {
+        this.currentAppBarOffsetTop_ = 0;
+      } else if (Math.abs(this.currentAppBarOffsetTop_) > this.topAppBarHeight_) {
+        this.currentAppBarOffsetTop_ = -this.topAppBarHeight_;
+      }
+
+      this.moveTopAppBar_();
+    }
+  }
+
+  /**
+   * Top app bar resize handler that throttle/debounce functions that execute updates.
+   * @override
+   */
+  handleWindowResize() {
+    // Throttle resize events 10 p/s
+    if (!this.resizeThrottleId_) {
+      this.resizeThrottleId_ = setTimeout(() => {
+        this.resizeThrottleId_ = INITIAL_VALUE;
+        this.throttledResizeHandler_();
+      }, numbers.DEBOUNCE_THROTTLE_RESIZE_TIME_MS);
+    }
+
+    this.isCurrentlyBeingResized_ = true;
+
+    if (this.resizeDebounceId_) {
+      clearTimeout(this.resizeDebounceId_);
+    }
+
+    this.resizeDebounceId_ = setTimeout(() => {
+      this.handleTargetScroll();
+      this.isCurrentlyBeingResized_ = false;
+      this.resizeDebounceId_ = INITIAL_VALUE;
+    }, numbers.DEBOUNCE_THROTTLE_RESIZE_TIME_MS);
   }
 
   /**
@@ -122,56 +169,8 @@ export class MDCTopAppBarFoundation extends MDCTopAppBarBaseFoundation {
         offset = -numbers.MAX_TOP_APP_BAR_HEIGHT;
       }
 
-      this.adapter_.setStyle('top', offset + 'px');
+      this.adapter.setStyle('top', offset + 'px');
     }
-  }
-
-  /**
-   * Scroll handler for the default scroll behavior of the top app bar.
-   */
-  private topAppBarScrollHandler_() {
-    const currentScrollPosition = Math.max(this.adapter_.getViewportScrollY(), 0);
-    const diff = currentScrollPosition - this.lastScrollPosition_;
-    this.lastScrollPosition_ = currentScrollPosition;
-
-    // If the window is being resized the lastScrollPosition_ needs to be updated but the
-    // current scroll of the top app bar should stay in the same position.
-    if (!this.isCurrentlyBeingResized_) {
-      this.currentAppBarOffsetTop_ -= diff;
-
-      if (this.currentAppBarOffsetTop_ > 0) {
-        this.currentAppBarOffsetTop_ = 0;
-      } else if (Math.abs(this.currentAppBarOffsetTop_) > this.topAppBarHeight_) {
-        this.currentAppBarOffsetTop_ = -this.topAppBarHeight_;
-      }
-
-      this.moveTopAppBar_();
-    }
-  }
-
-  /**
-   * Top app bar resize handler that throttle/debounce functions that execute updates.
-   */
-  private topAppBarResizeHandler_() {
-    // Throttle resize events 10 p/s
-    if (!this.resizeThrottleId_) {
-      this.resizeThrottleId_ = setTimeout(() => {
-        this.resizeThrottleId_ = INITIAL_VALUE;
-        this.throttledResizeHandler_();
-      }, numbers.DEBOUNCE_THROTTLE_RESIZE_TIME_MS);
-    }
-
-    this.isCurrentlyBeingResized_ = true;
-
-    if (this.resizeDebounceId_) {
-      clearTimeout(this.resizeDebounceId_);
-    }
-
-    this.resizeDebounceId_ = setTimeout(() => {
-      this.topAppBarScrollHandler_();
-      this.isCurrentlyBeingResized_ = false;
-      this.resizeDebounceId_ = INITIAL_VALUE;
-    }, numbers.DEBOUNCE_THROTTLE_RESIZE_TIME_MS);
   }
 
   /**
@@ -179,7 +178,7 @@ export class MDCTopAppBarFoundation extends MDCTopAppBarBaseFoundation {
    * top app bar height changes.
    */
   private throttledResizeHandler_() {
-    const currentHeight = this.adapter_.getTopAppBarHeight();
+    const currentHeight = this.adapter.getTopAppBarHeight();
     if (this.topAppBarHeight_ !== currentHeight) {
       this.wasDocked_ = false;
 
@@ -189,7 +188,7 @@ export class MDCTopAppBarFoundation extends MDCTopAppBarBaseFoundation {
       this.currentAppBarOffsetTop_ -= this.topAppBarHeight_ - currentHeight;
       this.topAppBarHeight_ = currentHeight;
     }
-    this.topAppBarScrollHandler_();
+    this.handleTargetScroll();
   }
 }
 

@@ -12,14 +12,25 @@ node_modules/
 
 # Build output
 /build/
+/dist/
 /coverage/
 packages/*/dist
 packages/**/*.js
 packages/**/*.d.ts
 packages/**/*.map
+packages/**/test/**.css
+packages/**/package-lock.json
 
 # Material.io site generator test (`npm run test:site`)
 .site-generator-tmp/
 
 # Used by internal sync & rewrite scripts
 .rewrite-tmp/
+
+# Individual CHANGELOG files
+packages/**/CHANGELOG.md
+
+#documentation
+docs.json
+methodDescriptionTable.md
+scripts/documentation/tsdoc.js

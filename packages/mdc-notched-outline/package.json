@@ -1,7 +1,7 @@
 {
   "name": "@material/notched-outline",
   "description": "The Material Components for the web notched-outline component",
-  "version": "1.1.1",
+  "version": "7.0.0",
   "license": "MIT",
   "keywords": [
     "material components",
@@ -15,18 +15,19 @@
   "types": "dist/mdc.notchedOutline.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/material-components/material-components-web.git"
+    "url": "git+https://github.com/material-components/material-components-web.git",
+    "directory": "packages/mdc-notched-outline"
   },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
-    "@material/animation": "^1.0.0",
-    "@material/base": "^1.0.0",
-    "@material/floating-label": "^1.1.0",
-    "@material/rtl": "^0.42.0",
-    "@material/shape": "^1.1.1",
-    "@material/theme": "^1.1.0",
+    "@material/base": "^7.0.0",
+    "@material/feature-targeting": "^7.0.0",
+    "@material/floating-label": "^7.0.0",
+    "@material/rtl": "^7.0.0",
+    "@material/shape": "^7.0.0",
+    "@material/theme": "^7.0.0",
     "tslib": "^1.9.3"
   }
 }

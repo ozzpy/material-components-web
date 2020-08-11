@@ -23,10 +23,13 @@
 
 import {getCorrectPropertyName} from '@material/animation/util';
 import {MDCFoundation} from '@material/base/foundation';
+import {MDCProgressIndicatorFoundation} from '@material/progress-indicator/foundation';
 import {MDCLinearProgressAdapter} from './adapter';
 import {cssClasses, strings} from './constants';
 
-export class MDCLinearProgressFoundation extends MDCFoundation<MDCLinearProgressAdapter> {
+export class MDCLinearProgressFoundation extends
+    MDCFoundation<MDCLinearProgressAdapter> implements
+        MDCProgressIndicatorFoundation {
   static get cssClasses() {
     return cssClasses;
   }
@@ -38,76 +41,127 @@ export class MDCLinearProgressFoundation extends MDCFoundation<MDCLinearProgress
   static get defaultAdapter(): MDCLinearProgressAdapter {
     return {
       addClass: () => undefined,
-      getBuffer: () => null,
-      getPrimaryBar: () => null,
+      forceLayout: () => undefined,
+      setBufferBarStyle: () => null,
+      setPrimaryBarStyle: () => null,
       hasClass: () => false,
+      removeAttribute: () => undefined,
       removeClass: () => undefined,
-      setStyle: () => undefined,
+      setAttribute: () => undefined,
     };
   }
 
-  private isDeterminate_!: boolean;
-  private isReversed_!: boolean;
-  private progress_!: number;
+  private isDeterminate!: boolean;
+  private isReversed!: boolean;
+  private progress!: number;
+  private buffer!: number;
 
   constructor(adapter?: Partial<MDCLinearProgressAdapter>) {
     super({...MDCLinearProgressFoundation.defaultAdapter, ...adapter});
   }
 
   init() {
-    this.isDeterminate_ = !this.adapter_.hasClass(cssClasses.INDETERMINATE_CLASS);
-    this.isReversed_ = this.adapter_.hasClass(cssClasses.REVERSED_CLASS);
-    this.progress_ = 0;
+    this.isDeterminate = !this.adapter.hasClass(cssClasses.INDETERMINATE_CLASS);
+    this.isReversed = this.adapter.hasClass(cssClasses.REVERSED_CLASS);
+    this.progress = 0;
+    this.buffer = 1;
   }
 
   setDeterminate(isDeterminate: boolean) {
-    this.isDeterminate_ = isDeterminate;
-    if (this.isDeterminate_) {
-      this.adapter_.removeClass(cssClasses.INDETERMINATE_CLASS);
-      this.setScale_(this.adapter_.getPrimaryBar(), this.progress_);
-    } else {
-      this.adapter_.addClass(cssClasses.INDETERMINATE_CLASS);
-      this.setScale_(this.adapter_.getPrimaryBar(), 1);
-      this.setScale_(this.adapter_.getBuffer(), 1);
+    this.isDeterminate = isDeterminate;
+
+    if (this.isDeterminate) {
+      this.adapter.removeClass(cssClasses.INDETERMINATE_CLASS);
+      this.adapter.setAttribute(
+          strings.ARIA_VALUENOW, this.progress.toString());
+      this.setPrimaryBarProgress(this.progress);
+      this.setBufferBarProgress(this.buffer);
+
+      return;
     }
+
+    if (this.isReversed) {
+      // Adding/removing REVERSED_CLASS starts a translate animation, while
+      // adding INDETERMINATE_CLASS starts a scale animation. Here, we reset
+      // the translate animation in order to keep it in sync with the new
+      // scale animation that will start from adding INDETERMINATE_CLASS
+      // below.
+      this.adapter.removeClass(cssClasses.REVERSED_CLASS);
+      this.adapter.forceLayout();
+      this.adapter.addClass(cssClasses.REVERSED_CLASS);
+    }
+
+    this.adapter.addClass(cssClasses.INDETERMINATE_CLASS);
+    this.adapter.removeAttribute(strings.ARIA_VALUENOW);
+    this.setPrimaryBarProgress(1);
+    this.setBufferBarProgress(1);
+  }
+
+  getDeterminate() {
+    return this.isDeterminate;
   }
 
   setProgress(value: number) {
-    this.progress_ = value;
-    if (this.isDeterminate_) {
-      this.setScale_(this.adapter_.getPrimaryBar(), value);
+    this.progress = value;
+    if (this.isDeterminate) {
+      this.setPrimaryBarProgress(value);
+      this.adapter.setAttribute(strings.ARIA_VALUENOW, value.toString());
     }
   }
 
+  getProgress() {
+    return this.progress;
+  }
+
   setBuffer(value: number) {
-    if (this.isDeterminate_) {
-      this.setScale_(this.adapter_.getBuffer(), value);
+    this.buffer = value;
+    if (this.isDeterminate) {
+      this.setBufferBarProgress(value);
     }
   }
 
   setReverse(isReversed: boolean) {
-    this.isReversed_ = isReversed;
-    if (this.isReversed_) {
-      this.adapter_.addClass(cssClasses.REVERSED_CLASS);
-    } else {
-      this.adapter_.removeClass(cssClasses.REVERSED_CLASS);
+    this.isReversed = isReversed;
+
+    if (!this.isDeterminate) {
+      // Adding INDETERMINATE_CLASS starts a scale animation, while
+      // adding/removing REVERSED_CLASS starts a translate animation. Here, we
+      // reset the scale animation in order to keep it in sync with the new
+      // translate animation that will start from adding/removing REVERSED_CLASS
+      // below.
+      this.adapter.removeClass(cssClasses.INDETERMINATE_CLASS);
+      this.adapter.forceLayout();
+      this.adapter.addClass(cssClasses.INDETERMINATE_CLASS);
     }
+
+    if (this.isReversed) {
+      this.adapter.addClass(cssClasses.REVERSED_CLASS);
+      return;
+    }
+
+    this.adapter.removeClass(cssClasses.REVERSED_CLASS);
   }
 
   open() {
-    this.adapter_.removeClass(cssClasses.CLOSED_CLASS);
+    this.adapter.removeClass(cssClasses.CLOSED_CLASS);
   }
 
   close() {
-    this.adapter_.addClass(cssClasses.CLOSED_CLASS);
+    this.adapter.addClass(cssClasses.CLOSED_CLASS);
   }
 
-  private setScale_(el: HTMLElement | null, scaleValue: number) {
-    if (!el) {
-      return;
-    }
-    const value = `scaleX(${scaleValue})`;
-    this.adapter_.setStyle(el, getCorrectPropertyName(window, 'transform'), value);
+  private setPrimaryBarProgress(progressValue: number) {
+    const value = `scaleX(${progressValue})`;
+
+    // Accessing `window` without a `typeof` check will throw on Node environments.
+    const transformProp = typeof window !== 'undefined' ?
+        getCorrectPropertyName(window, 'transform') : 'transform';
+    this.adapter.setPrimaryBarStyle(transformProp, value);
+  }
+
+  private setBufferBarProgress(progressValue: number) {
+    const value = `${progressValue * 100}%`;
+    this.adapter.setBufferBarStyle(strings.FLEX_BASIS, value);
   }
 }
 

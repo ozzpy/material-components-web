@@ -22,6 +22,7 @@
  */
 
 import {MDCComponent} from '@material/base/component';
+import {SpecificEventListener} from '@material/base/types';
 import {MDCRipple, MDCRippleFactory} from '@material/ripple/component';
 import {MDCTopAppBarAdapter} from './adapter';
 import {cssClasses, strings} from './constants';
@@ -35,15 +36,19 @@ export class MDCTopAppBar extends MDCComponent<MDCTopAppBarBaseFoundation> {
     return new MDCTopAppBar(root);
   }
 
+  private handleNavigationClick_!: SpecificEventListener<'click'>; // assigned in initialSyncWithDOM()
+  private handleWindowResize_!: SpecificEventListener<'resize'>; // assigned in initialSyncWithDOM()
+  private handleTargetScroll_!: SpecificEventListener<'scroll'>; // assigned in initialSyncWithDOM()
   private navIcon_!: Element | null;
   private iconRipples_!: MDCRipple[];
   private scrollTarget_!: EventTarget;
 
   initialize(rippleFactory: MDCRippleFactory = (el) => MDCRipple.attachTo(el)) {
-    this.navIcon_ = this.root_.querySelector(strings.NAVIGATION_ICON_SELECTOR);
+    this.navIcon_ = this.root.querySelector(strings.NAVIGATION_ICON_SELECTOR);
 
     // Get all icons in the toolbar and instantiate the ripples
-    const icons: Element[] = [].slice.call(this.root_.querySelectorAll(strings.ACTION_ITEM_SELECTOR));
+    const icons: Element[] =
+        [].slice.call(this.root.querySelectorAll(strings.ACTION_ITEM_SELECTOR));
     if (this.navIcon_) {
       icons.push(this.navIcon_);
     }
@@ -57,19 +62,51 @@ export class MDCTopAppBar extends MDCComponent<MDCTopAppBarBaseFoundation> {
     this.scrollTarget_ = window;
   }
 
+  initialSyncWithDOM() {
+    this.handleNavigationClick_ =
+        this.foundation.handleNavigationClick.bind(this.foundation);
+    this.handleWindowResize_ =
+        this.foundation.handleWindowResize.bind(this.foundation);
+    this.handleTargetScroll_ =
+        this.foundation.handleTargetScroll.bind(this.foundation);
+
+    this.scrollTarget_.addEventListener('scroll', this.handleTargetScroll_ as EventListener);
+
+    if (this.navIcon_) {
+      this.navIcon_.addEventListener('click', this.handleNavigationClick_ as EventListener);
+    }
+
+    const isFixed = this.root.classList.contains(cssClasses.FIXED_CLASS);
+    const isShort = this.root.classList.contains(cssClasses.SHORT_CLASS);
+    if (!isShort && !isFixed) {
+      window.addEventListener('resize', this.handleWindowResize_ as EventListener);
+    }
+  }
+
   destroy() {
     this.iconRipples_.forEach((iconRipple) => iconRipple.destroy());
+    this.scrollTarget_.removeEventListener('scroll', this.handleTargetScroll_ as EventListener);
+    if (this.navIcon_) {
+      this.navIcon_.removeEventListener('click', this.handleNavigationClick_ as EventListener);
+    }
+    const isFixed = this.root.classList.contains(cssClasses.FIXED_CLASS);
+    const isShort = this.root.classList.contains(cssClasses.SHORT_CLASS);
+    if (!isShort && !isFixed) {
+      window.removeEventListener('resize', this.handleWindowResize_ as EventListener);
+    }
     super.destroy();
   }
 
   setScrollTarget(target: EventTarget) {
     // Remove scroll handler from the previous scroll target
-    this.foundation_.destroyScrollHandler();
+    this.scrollTarget_.removeEventListener('scroll', this.handleTargetScroll_ as EventListener);
 
     this.scrollTarget_ = target;
 
     // Initialize scroll handler on the new scroll target
-    this.foundation_.initScrollHandler();
+    this.handleTargetScroll_ =
+        this.foundation.handleTargetScroll.bind(this.foundation);
+    this.scrollTarget_.addEventListener('scroll', this.handleTargetScroll_ as EventListener);
   }
 
   getDefaultFoundation() {
@@ -77,39 +114,28 @@ export class MDCTopAppBar extends MDCComponent<MDCTopAppBarBaseFoundation> {
     // To ensure we don't accidentally omit any methods, we need a separate, strongly typed adapter variable.
     // tslint:disable:object-literal-sort-keys Methods should be in the same order as the adapter interface.
     const adapter: MDCTopAppBarAdapter = {
-      hasClass: (className) => this.root_.classList.contains(className),
-      addClass: (className) => this.root_.classList.add(className),
-      removeClass: (className) => this.root_.classList.remove(className),
-      setStyle: (property, value) => (this.root_ as HTMLElement).style.setProperty(property, value),
-      getTopAppBarHeight: () => this.root_.clientHeight,
-      registerNavigationIconInteractionHandler: (evtType, handler) => {
-        if (this.navIcon_) {
-          this.navIcon_.addEventListener(evtType, handler);
-        }
-      },
-      deregisterNavigationIconInteractionHandler: (evtType, handler) => {
-        if (this.navIcon_) {
-          this.navIcon_.removeEventListener(evtType, handler);
-        }
-      },
-      notifyNavigationIconClicked: () => this.emit(strings.NAVIGATION_EVENT, {}),
-      registerScrollHandler: (handler) => this.scrollTarget_.addEventListener('scroll', handler as EventListener),
-      deregisterScrollHandler: (handler) => this.scrollTarget_.removeEventListener('scroll', handler as EventListener),
-      registerResizeHandler: (handler) => window.addEventListener('resize', handler),
-      deregisterResizeHandler: (handler) => window.removeEventListener('resize', handler),
+      hasClass: (className) => this.root.classList.contains(className),
+      addClass: (className) => this.root.classList.add(className),
+      removeClass: (className) => this.root.classList.remove(className),
+      setStyle: (property, value) =>
+          (this.root as HTMLElement).style.setProperty(property, value),
+      getTopAppBarHeight: () => this.root.clientHeight,
+      notifyNavigationIconClicked: () =>
+          this.emit(strings.NAVIGATION_EVENT, {}),
       getViewportScrollY: () => {
         const win = this.scrollTarget_ as Window;
         const el = this.scrollTarget_ as Element;
         return win.pageYOffset !== undefined ? win.pageYOffset : el.scrollTop;
       },
-      getTotalActionItems: () => this.root_.querySelectorAll(strings.ACTION_ITEM_SELECTOR).length,
+      getTotalActionItems: () =>
+          this.root.querySelectorAll(strings.ACTION_ITEM_SELECTOR).length,
     };
     // tslint:enable:object-literal-sort-keys
 
     let foundation: MDCTopAppBarBaseFoundation;
-    if (this.root_.classList.contains(cssClasses.SHORT_CLASS)) {
+    if (this.root.classList.contains(cssClasses.SHORT_CLASS)) {
       foundation = new MDCShortTopAppBarFoundation(adapter);
-    } else if (this.root_.classList.contains(cssClasses.FIXED_CLASS)) {
+    } else if (this.root.classList.contains(cssClasses.FIXED_CLASS)) {
       foundation = new MDCFixedTopAppBarFoundation(adapter);
     } else {
       foundation = new MDCTopAppBarFoundation(adapter);

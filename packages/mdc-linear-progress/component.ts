@@ -22,48 +22,74 @@
  */
 
 import {MDCComponent} from '@material/base/component';
+import {MDCProgressIndicator} from '@material/progress-indicator/component';
 import {MDCLinearProgressAdapter} from './adapter';
 import {MDCLinearProgressFoundation} from './foundation';
 
-export class MDCLinearProgress extends MDCComponent<MDCLinearProgressFoundation> {
+export class MDCLinearProgress extends
+    MDCComponent<MDCLinearProgressFoundation> implements MDCProgressIndicator {
   static attachTo(root: Element) {
     return new MDCLinearProgress(root);
   }
 
   set determinate(value: boolean) {
-    this.foundation_.setDeterminate(value);
+    this.foundation.setDeterminate(value);
   }
 
   set progress(value: number) {
-    this.foundation_.setProgress(value);
+    this.foundation.setProgress(value);
   }
 
   set buffer(value: number) {
-    this.foundation_.setBuffer(value);
+    this.foundation.setBuffer(value);
   }
 
   set reverse(value: boolean) {
-    this.foundation_.setReverse(value);
+    this.foundation.setReverse(value);
   }
 
   open() {
-    this.foundation_.open();
+    this.foundation.open();
   }
 
   close() {
-    this.foundation_.close();
+    this.foundation.close();
   }
 
   getDefaultFoundation() {
     // DO NOT INLINE this variable. For backward compatibility, foundations take a Partial<MDCFooAdapter>.
     // To ensure we don't accidentally omit any methods, we need a separate, strongly typed adapter variable.
     const adapter: MDCLinearProgressAdapter = {
-      addClass: (className: string) => this.root_.classList.add(className),
-      getBuffer: () => this.root_.querySelector(MDCLinearProgressFoundation.strings.BUFFER_SELECTOR),
-      getPrimaryBar: () => this.root_.querySelector(MDCLinearProgressFoundation.strings.PRIMARY_BAR_SELECTOR),
-      hasClass: (className: string) => this.root_.classList.contains(className),
-      removeClass: (className: string) => this.root_.classList.remove(className),
-      setStyle: (el: HTMLElement, styleProperty: string, value: string) => el.style.setProperty(styleProperty, value),
+      addClass: (className: string) => {
+        this.root.classList.add(className);
+      },
+      forceLayout: () => {
+        this.root.getBoundingClientRect();
+      },
+      setBufferBarStyle: (styleProperty: string, value: string) => {
+        const bufferBar = this.root.querySelector<HTMLElement>(
+            MDCLinearProgressFoundation.strings.BUFFER_BAR_SELECTOR);
+        if (bufferBar) {
+          bufferBar.style.setProperty(styleProperty, value);
+        }
+      },
+      setPrimaryBarStyle: (styleProperty: string, value: string) => {
+        const primaryBar = this.root.querySelector<HTMLElement>(
+            MDCLinearProgressFoundation.strings.PRIMARY_BAR_SELECTOR);
+        if (primaryBar) {
+          primaryBar.style.setProperty(styleProperty, value);
+        }
+      },
+      hasClass: (className: string) => this.root.classList.contains(className),
+      removeAttribute: (attributeName: string) => {
+        this.root.removeAttribute(attributeName);
+      },
+      removeClass: (className: string) => {
+        this.root.classList.remove(className);
+      },
+      setAttribute: (attributeName: string, value: string) => {
+        this.root.setAttribute(attributeName, value);
+      },
     };
     return new MDCLinearProgressFoundation(adapter);
   }

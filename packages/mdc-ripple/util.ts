@@ -28,32 +28,6 @@ import {MDCRipplePoint} from './types';
  */
 let supportsCssVariables_: boolean | undefined;
 
-/**
- * Stores result from applyPassive to avoid redundant processing to detect
- * passive event listener support.
- */
-let supportsPassive_: boolean | undefined;
-
-function detectEdgePseudoVarBug(windowObj: Window): boolean {
-  // Detect versions of Edge with buggy var() support
-  // See: https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/11495448/
-  const document = windowObj.document;
-  const node = document.createElement('div');
-  node.className = 'mdc-ripple-surface--test-edge-var-bug';
-  document.body.appendChild(node);
-
-  // The bug exists if ::before style ends up propagating to the parent element.
-  // Additionally, getComputedStyle returns null in iframes with display: "none" in Firefox,
-  // but Firefox is known to support CSS custom properties correctly.
-  // See: https://bugzilla.mozilla.org/show_bug.cgi?id=548397
-  const computedStyle = windowObj.getComputedStyle(node);
-  const hasPseudoVarBug = computedStyle !== null && computedStyle.borderTopStyle === 'solid';
-  if (node.parentNode) {
-    node.parentNode.removeChild(node);
-  }
-  return hasPseudoVarBug;
-}
-
 export function supportsCssVariables(windowObj: Window, forceRefresh = false): boolean {
   const {CSS} = windowObj;
   let supportsCssVars = supportsCssVariables_;
@@ -74,40 +48,13 @@ export function supportsCssVariables(windowObj: Window, forceRefresh = false): b
       CSS.supports('color', '#00000000')
   );
 
-  if (explicitlySupportsCssVars || weAreFeatureDetectingSafari10plus) {
-    supportsCssVars = !detectEdgePseudoVarBug(windowObj);
-  } else {
-    supportsCssVars = false;
-  }
+  supportsCssVars =
+      explicitlySupportsCssVars || weAreFeatureDetectingSafari10plus;
 
   if (!forceRefresh) {
     supportsCssVariables_ = supportsCssVars;
   }
   return supportsCssVars;
-}
-
-/**
- * Determine whether the current browser supports passive event listeners, and
- * if so, use them.
- */
-export function applyPassive(globalObj: Window = window, forceRefresh = false):
-    boolean | EventListenerOptions {
-  if (supportsPassive_ === undefined || forceRefresh) {
-    let isSupported = false;
-    try {
-      globalObj.document.addEventListener('test', () => undefined, {
-        get passive() {
-          isSupported = true;
-          return isSupported;
-        },
-      });
-    } catch (e) {
-    } // tslint:disable-line:no-empty cannot throw error due to tests. tslint also disables console.log.
-
-    supportsPassive_ = isSupported;
-  }
-
-  return supportsPassive_ ? {passive: true} as EventListenerOptions : false;
 }
 
 export function getNormalizedEventCoords(evt: Event | undefined, pageOffset: MDCRipplePoint, clientRect: ClientRect):

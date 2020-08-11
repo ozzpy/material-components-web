@@ -22,7 +22,8 @@
  */
 
 import {MDCComponent} from '@material/base/component';
-import {EventType} from '@material/base/types';
+import {EventType, SpecificEventListener} from '@material/base/types';
+import {applyPassive} from '@material/dom/events';
 import {matches} from '@material/dom/ponyfill';
 import {MDCRippleAdapter} from '@material/ripple/adapter';
 import {MDCRipple} from '@material/ripple/component';
@@ -36,9 +37,6 @@ export class MDCSwitch extends MDCComponent<MDCSwitchFoundation> implements MDCR
     return new MDCSwitch(root);
   }
 
-  // Public visibility for this property is required by MDCRippleCapableSurface.
-  root_!: Element; // assigned in MDCComponent constructor
-
   private readonly ripple_ = this.createRipple_();
 
   // Initialized in `initialSyncWithDOM`.
@@ -51,7 +49,7 @@ export class MDCSwitch extends MDCComponent<MDCSwitchFoundation> implements MDCR
   }
 
   initialSyncWithDOM() {
-    this.changeHandler_ = (...args) => this.foundation_.handleChange(...args);
+    this.changeHandler_ = (...args) => this.foundation.handleChange(...args);
     this.nativeControl_.addEventListener('change', this.changeHandler_);
 
     // Sometimes the checked state of the input element is saved in the history.
@@ -64,10 +62,14 @@ export class MDCSwitch extends MDCComponent<MDCSwitchFoundation> implements MDCR
     // DO NOT INLINE this variable. For backward compatibility, foundations take a Partial<MDCFooAdapter>.
     // To ensure we don't accidentally omit any methods, we need a separate, strongly typed adapter variable.
     const adapter: MDCSwitchAdapter = {
-      addClass: (className) => this.root_.classList.add(className),
-      removeClass: (className) => this.root_.classList.remove(className),
-      setNativeControlChecked: (checked) => this.nativeControl_.checked = checked,
-      setNativeControlDisabled: (disabled) => this.nativeControl_.disabled = disabled,
+      addClass: (className) => this.root.classList.add(className),
+      removeClass: (className) => this.root.classList.remove(className),
+      setNativeControlChecked: (checked) => this.nativeControl_.checked =
+          checked,
+      setNativeControlDisabled: (disabled) => this.nativeControl_.disabled =
+          disabled,
+      setNativeControlAttr: (attr, value) =>
+          this.nativeControl_.setAttribute(attr, value),
     };
     return new MDCSwitchFoundation(adapter);
   }
@@ -81,7 +83,7 @@ export class MDCSwitch extends MDCComponent<MDCSwitchFoundation> implements MDCR
   }
 
   set checked(checked) {
-    this.foundation_.setChecked(checked);
+    this.foundation.setChecked(checked);
   }
 
   get disabled() {
@@ -89,12 +91,13 @@ export class MDCSwitch extends MDCComponent<MDCSwitchFoundation> implements MDCR
   }
 
   set disabled(disabled) {
-    this.foundation_.setDisabled(disabled);
+    this.foundation.setDisabled(disabled);
   }
 
   private createRipple_(): MDCRipple {
     const {RIPPLE_SURFACE_SELECTOR} = MDCSwitchFoundation.strings;
-    const rippleSurface = this.root_.querySelector(RIPPLE_SURFACE_SELECTOR) as HTMLElement;
+    const rippleSurface =
+        this.root.querySelector(RIPPLE_SURFACE_SELECTOR) as HTMLElement;
 
     // DO NOT INLINE this variable. For backward compatibility, foundations take a Partial<MDCFooAdapter>.
     // To ensure we don't accidentally omit any methods, we need a separate, strongly typed adapter variable.
@@ -102,24 +105,28 @@ export class MDCSwitch extends MDCComponent<MDCSwitchFoundation> implements MDCR
       ...MDCRipple.createAdapter(this),
       addClass: (className: string) => rippleSurface.classList.add(className),
       computeBoundingRect: () => rippleSurface.getBoundingClientRect(),
-      deregisterInteractionHandler: (evtType: EventType, handler: EventListener) => {
-        this.nativeControl_.removeEventListener(evtType, handler);
+      deregisterInteractionHandler: <K extends EventType>(
+          evtType: K, handler: SpecificEventListener<K>) => {
+        this.nativeControl_.removeEventListener(evtType, handler, applyPassive());
       },
       isSurfaceActive: () => matches(this.nativeControl_, ':active'),
       isUnbounded: () => true,
-      registerInteractionHandler: (evtType: EventType, handler: EventListener) => {
-        this.nativeControl_.addEventListener(evtType, handler);
+      registerInteractionHandler: <K extends EventType>(
+          evtType: K, handler: SpecificEventListener<K>) => {
+        this.nativeControl_.addEventListener(evtType, handler, applyPassive());
       },
-      removeClass: (className: string) => rippleSurface.classList.remove(className),
+      removeClass: (className: string) => {
+        rippleSurface.classList.remove(className);
+      },
       updateCssVariable: (varName: string, value: string) => {
         rippleSurface.style.setProperty(varName, value);
       },
     };
-    return new MDCRipple(this.root_, new MDCRippleFoundation(adapter));
+    return new MDCRipple(this.root, new MDCRippleFoundation(adapter));
   }
 
   private get nativeControl_() {
     const {NATIVE_CONTROL_SELECTOR} = MDCSwitchFoundation.strings;
-    return this.root_.querySelector(NATIVE_CONTROL_SELECTOR) as HTMLInputElement;
+    return this.root.querySelector(NATIVE_CONTROL_SELECTOR) as HTMLInputElement;
   }
 }

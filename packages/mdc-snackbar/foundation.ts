@@ -70,29 +70,32 @@ export class MDCSnackbarFoundation extends MDCFoundation<MDCSnackbarAdapter> {
     this.animationFrame_ = 0;
     clearTimeout(this.animationTimer_);
     this.animationTimer_ = 0;
-    this.adapter_.removeClass(OPENING);
-    this.adapter_.removeClass(OPEN);
-    this.adapter_.removeClass(CLOSING);
+    this.adapter.removeClass(OPENING);
+    this.adapter.removeClass(OPEN);
+    this.adapter.removeClass(CLOSING);
   }
 
   open() {
     this.clearAutoDismissTimer_();
     this.isOpen_ = true;
-    this.adapter_.notifyOpening();
-    this.adapter_.removeClass(CLOSING);
-    this.adapter_.addClass(OPENING);
-    this.adapter_.announce();
+    this.adapter.notifyOpening();
+    this.adapter.removeClass(CLOSING);
+    this.adapter.addClass(OPENING);
+    this.adapter.announce();
 
     // Wait a frame once display is no longer "none", to establish basis for animation
     this.runNextAnimationFrame_(() => {
-      this.adapter_.addClass(OPEN);
+      this.adapter.addClass(OPEN);
 
       this.animationTimer_ = setTimeout(() => {
+        const timeoutMs = this.getTimeoutMs();
         this.handleAnimationTimerEnd_();
-        this.adapter_.notifyOpened();
-        this.autoDismissTimer_ = setTimeout(() => {
-          this.close(REASON_DISMISS);
-        }, this.getTimeoutMs());
+        this.adapter.notifyOpened();
+        if (timeoutMs !== numbers.INDETERMINATE) {
+          this.autoDismissTimer_ = setTimeout(() => {
+            this.close(REASON_DISMISS);
+          }, timeoutMs);
+        }
       }, numbers.SNACKBAR_ANIMATION_OPEN_TIME_MS);
     });
   }
@@ -113,15 +116,15 @@ export class MDCSnackbarFoundation extends MDCFoundation<MDCSnackbarAdapter> {
     this.clearAutoDismissTimer_();
 
     this.isOpen_ = false;
-    this.adapter_.notifyClosing(reason);
-    this.adapter_.addClass(cssClasses.CLOSING);
-    this.adapter_.removeClass(cssClasses.OPEN);
-    this.adapter_.removeClass(cssClasses.OPENING);
+    this.adapter.notifyClosing(reason);
+    this.adapter.addClass(cssClasses.CLOSING);
+    this.adapter.removeClass(cssClasses.OPEN);
+    this.adapter.removeClass(cssClasses.OPENING);
 
     clearTimeout(this.animationTimer_);
     this.animationTimer_ = setTimeout(() => {
       this.handleAnimationTimerEnd_();
-      this.adapter_.notifyClosed(reason);
+      this.adapter.notifyClosed(reason);
     }, numbers.SNACKBAR_ANIMATION_CLOSE_TIME_MS);
   }
 
@@ -137,11 +140,14 @@ export class MDCSnackbarFoundation extends MDCFoundation<MDCSnackbarAdapter> {
     // Use shorter variable names to make the code more readable
     const minValue = numbers.MIN_AUTO_DISMISS_TIMEOUT_MS;
     const maxValue = numbers.MAX_AUTO_DISMISS_TIMEOUT_MS;
+    const indeterminateValue = numbers.INDETERMINATE;
 
-    if (timeoutMs <= maxValue && timeoutMs >= minValue) {
+    if (timeoutMs === numbers.INDETERMINATE || (timeoutMs <= maxValue && timeoutMs >= minValue)) {
       this.autoDismissTimeoutMs_ = timeoutMs;
     } else {
-      throw new Error(`timeoutMs must be an integer in the range ${minValue}–${maxValue}, but got '${timeoutMs}'`);
+      throw new Error(`
+        timeoutMs must be an integer in the range ${minValue}–${maxValue}
+        (or ${indeterminateValue} to disable), but got '${timeoutMs}'`);
     }
   }
 
@@ -175,8 +181,8 @@ export class MDCSnackbarFoundation extends MDCFoundation<MDCSnackbarAdapter> {
 
   private handleAnimationTimerEnd_() {
     this.animationTimer_ = 0;
-    this.adapter_.removeClass(cssClasses.OPENING);
-    this.adapter_.removeClass(cssClasses.CLOSING);
+    this.adapter.removeClass(cssClasses.OPENING);
+    this.adapter.removeClass(cssClasses.CLOSING);
   }
 
   /**

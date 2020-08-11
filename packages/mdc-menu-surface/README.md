@@ -50,7 +50,7 @@ npm install @material/menu-surface
 ### Styles
 
 ```css
-@import "@material/menu-surface/mdc-menu-surface";
+@use "@material/menu-surface/mdc-menu-surface";
 ```
 
 ### JavaScript Instantiation
@@ -113,7 +113,7 @@ menuSurface.setFixedPosition(true);
 #### Absolute Position
 
 The menu surface can use absolute positioning when being displayed. This requires that the element containing the
-menu (`body` if using `hoistMenuToBody()`) has the `position: relative` style.
+menu has the `position: relative` style.
 
 ```html
 <div class="mdc-menu-surface">
@@ -123,7 +123,6 @@ menu (`body` if using `hoistMenuToBody()`) has the `position: relative` style.
 
 ```js
 // ...
-menuSurface.hoistMenuToBody(); // Not required if the menu-surface is already positioned on the body.
 menuSurface.setAbsolutePosition(100, 100);
 ```
 
@@ -139,14 +138,15 @@ CSS Class | Description
 `mdc-menu-surface--animating-closed` | Indicates the menu surface is currently animating closed. This class is removed once the animation completes.
 `mdc-menu-surface--anchor` | Used to indicate which element the menu should be anchored to.
 `mdc-menu-surface--fixed` | Used to indicate that the menu is using fixed positioning.
+`mdc-menu-surface--fullwidth`| Sets the menu-surface's width to match that of its parent anchor. Do not use with `mdc-menu-surface--fixed` or if hoisting to body.
 
 ### Sass Mixins
 
 Mixin | Description
 --- | ---
-`mdc-menu-surface-ink-color($color)` | Sets the `color` property of the `mdc-menu-surface`.
-`mdc-menu-surface-fill-color($color)` | Sets the `background-color` property of the `mdc-menu-surface`.
-`mdc-menu-surface-shape-radius($radius, $rtl-reflexive)` | Sets the rounded shape to menu surface with given radius size. Set `$rtl-reflexive` to true to flip radius values in RTL context, defaults to false.
+`ink-color($color)` | Sets the `color` property of the `mdc-menu-surface`.
+`fill-color($color)` | Sets the `background-color` property of the `mdc-menu-surface`.
+`shape-radius($radius, $rtl-reflexive)` | Sets the rounded shape to menu surface with given radius size. Set `$rtl-reflexive` to true to flip radius values in RTL context, defaults to false.
 
 ## Constants & Types
 
@@ -164,18 +164,19 @@ Type Name | Description
 
 Property | Value Type | Description
 --- | --- | ---
-`open` | `boolean` | Proxies to the foundation's `isOpen`/(`open`, `close`) methods.
 `quickOpen` | `boolean` | Proxies to the foundation's `setQuickOpen()` method.
 `anchorElement` | `Element` | Gets or sets the element that the surface is anchored to, or `null` if the surface is not anchored. Defaults to the root element's parent `mdc-menu-surface--anchor` element if present.
 
 Method Signature | Description
 --- | ---
+`isOpen() => boolean` | Proxies to the foundation's `isOpen` method.
+`open() => void` | Proxies to the foundation's `open` method.
+`close(skipRestoreFocus: boolean) => void` | Proxies to the foundation's `close` method.
 `setAnchorCorner(Corner) => void` | Proxies to the foundation's `setAnchorCorner(Corner)` method.
 `setAnchorMargin(Partial<MDCMenuDistance>) => void` | Proxies to the foundation's `setAnchorMargin(Partial<MDCMenuDistance>)` method.
 `setFixedPosition(isFixed: boolean) => void` | Adds the `mdc-menu-surface--fixed` class to the `mdc-menu-surface` element. Proxies to the foundation's `setIsHoisted()` and `setFixedPosition()` methods.
 `setAbsolutePosition(x: number, y: number) => void` | Proxies to the foundation's `setAbsolutePosition(x, y)` method. Used to set the absolute x/y position of the menu on the page. Should only be used when the menu is hoisted to the body.
-`setMenuSurfaceAnchorElement(element: Element) => void` | Changes the element used as an anchor for `menu-surface` positioning logic. Should be used with conjunction with `hoistMenuToBody()`.
-`hoistMenuToBody() => void` | Removes the `menu-surface` element from the DOM and appends it to the `body` element. Should be used to overcome `overflow: hidden` issues.
+`setMenuSurfaceAnchorElement(element: Element) => void` | Sets the element used as an anchor for `menu-surface` positioning logic.
 `setIsHoisted() => void` | Proxies to the foundation's `setIsHoisted` method.
 `getDefaultFoundation() => MDCMenuSurfaceFoundation` | Returns the foundation.
 
@@ -206,10 +207,6 @@ Method Signature | Description
 `isFocused() => boolean` | Returns a boolean value indicating whether the root element of the menu surface is focused.
 `saveFocus() => void` | Stores the currently focused element on the document, for restoring with `restoreFocus`.
 `restoreFocus() => void` | Restores the previously saved focus state, by making the previously focused element the active focus again.
-`isFirstElementFocused() => boolean` | Returns a boolean value indicating if the first focusable element of the menu-surface is focused.
-`isLastElementFocused() => boolean` | Returns a boolean value indicating if the last focusable element of the menu-surface is focused.
-`focusFirstElement() => void` | Focuses the first focusable element of the menu-surface.
-`focusLastElement() => void` | Focuses the last focusable element of the menu-surface.
 `getInnerDimensions() => MDCMenuDimensions` | Returns an object with the items container width and height.
 `getAnchorDimensions() => ClientRect \| null` | Returns an object with the dimensions and position of the anchor.
 `getBodyDimensions() => MDCMenuDimensions` | Returns an object with width and height of the body, in pixels.

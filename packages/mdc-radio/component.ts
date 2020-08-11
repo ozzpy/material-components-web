@@ -22,6 +22,7 @@
  */
 
 import {MDCComponent} from '@material/base/component';
+import {applyPassive} from '@material/dom/events';
 import {MDCRippleAdapter} from '@material/ripple/adapter';
 import {MDCRipple} from '@material/ripple/component';
 import {MDCRippleFoundation} from '@material/ripple/foundation';
@@ -47,7 +48,7 @@ export class MDCRadio extends MDCComponent<MDCRadioFoundation> implements MDCRip
   }
 
   set disabled(disabled: boolean) {
-    this.foundation_.setDisabled(disabled);
+    this.foundation.setDisabled(disabled);
   }
 
   get value() {
@@ -62,9 +63,6 @@ export class MDCRadio extends MDCComponent<MDCRadioFoundation> implements MDCRip
     return this.ripple_;
   }
 
-  // Public visibility for this property is required by MDCRippleCapableSurface.
-  root_!: Element; // assigned in MDCComponent constructor
-
   private readonly ripple_: MDCRipple = this.createRipple_();
 
   destroy() {
@@ -76,9 +74,10 @@ export class MDCRadio extends MDCComponent<MDCRadioFoundation> implements MDCRip
     // DO NOT INLINE this variable. For backward compatibility, foundations take a Partial<MDCFooAdapter>.
     // To ensure we don't accidentally omit any methods, we need a separate, strongly typed adapter variable.
     const adapter: MDCRadioAdapter = {
-      addClass: (className) => this.root_.classList.add(className),
-      removeClass: (className) => this.root_.classList.remove(className),
-      setNativeControlDisabled: (disabled) => this.nativeControl_.disabled = disabled,
+      addClass: (className) => this.root.classList.add(className),
+      removeClass: (className) => this.root.classList.remove(className),
+      setNativeControlDisabled: (disabled) => this.nativeControl_.disabled =
+          disabled,
     };
     return new MDCRadioFoundation(adapter);
   }
@@ -89,20 +88,23 @@ export class MDCRadio extends MDCComponent<MDCRadioFoundation> implements MDCRip
     // tslint:disable:object-literal-sort-keys Methods should be in the same order as the adapter interface.
     const adapter: MDCRippleAdapter = {
       ...MDCRipple.createAdapter(this),
-      registerInteractionHandler: (evtType, handler) => this.nativeControl_.addEventListener(evtType, handler),
-      deregisterInteractionHandler: (evtType, handler) => this.nativeControl_.removeEventListener(evtType, handler),
+      registerInteractionHandler: (evtType, handler) => this.nativeControl_.addEventListener(
+        evtType, handler, applyPassive()),
+      deregisterInteractionHandler: (evtType, handler) => this.nativeControl_.removeEventListener(
+        evtType, handler, applyPassive()),
       // Radio buttons technically go "active" whenever there is *any* keyboard interaction.
       // This is not the UI we desire.
       isSurfaceActive: () => false,
       isUnbounded: () => true,
     };
     // tslint:enable:object-literal-sort-keys
-    return new MDCRipple(this.root_, new MDCRippleFoundation(adapter));
+    return new MDCRipple(this.root, new MDCRippleFoundation(adapter));
   }
 
   private get nativeControl_(): HTMLInputElement {
     const {NATIVE_CONTROL_SELECTOR} = MDCRadioFoundation.strings;
-    const el = this.root_.querySelector<HTMLInputElement>(NATIVE_CONTROL_SELECTOR);
+    const el =
+        this.root.querySelector<HTMLInputElement>(NATIVE_CONTROL_SELECTOR);
     if (!el) {
       throw new Error(`Radio component requires a ${NATIVE_CONTROL_SELECTOR} element`);
     }

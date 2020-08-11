@@ -23,20 +23,22 @@
 
 const strings = {
   ARIA_CONTROLS: 'aria-controls',
-  ICON_SELECTOR: '.mdc-text-field__icon',
   INPUT_SELECTOR: '.mdc-text-field__input',
   LABEL_SELECTOR: '.mdc-floating-label',
+  LEADING_ICON_SELECTOR: '.mdc-text-field__icon--leading',
   LINE_RIPPLE_SELECTOR: '.mdc-line-ripple',
   OUTLINE_SELECTOR: '.mdc-notched-outline',
+  PREFIX_SELECTOR: '.mdc-text-field__affix--prefix',
+  SUFFIX_SELECTOR: '.mdc-text-field__affix--suffix',
+  TRAILING_ICON_SELECTOR: '.mdc-text-field__icon--trailing'
 };
 
 const cssClasses = {
-  DENSE: 'mdc-text-field--dense',
   DISABLED: 'mdc-text-field--disabled',
   FOCUSED: 'mdc-text-field--focused',
-  FULLWIDTH: 'mdc-text-field--fullwidth',
   HELPER_LINE: 'mdc-text-field-helper-line',
   INVALID: 'mdc-text-field--invalid',
+  LABEL_FLOATING: 'mdc-text-field--label-floating',
   NO_LABEL: 'mdc-text-field--no-label',
   OUTLINED: 'mdc-text-field--outlined',
   ROOT: 'mdc-text-field',
@@ -46,7 +48,6 @@ const cssClasses = {
 };
 
 const numbers = {
-  DENSE_LABEL_SCALE: 0.923,
   LABEL_SCALE: 0.75,
 };
 

@@ -21,6 +21,8 @@
  * THE SOFTWARE.
  */
 
+import {EventSource} from './constants';
+
 /**
  * Defines the shape of the adapter expected by the foundation.
  * Implement this adapter for your framework of choice to delegate updates to
@@ -60,6 +62,11 @@ export interface MDCChipAdapter {
   eventTargetHasClass(target: EventTarget | null, className: string): boolean;
 
   /**
+   * @return the attribute string value if present, otherwise null
+   */
+  getAttribute(attr: string): string|null;
+
+  /**
    * Emits a custom "MDCChip:interaction" event denoting the chip has been
    * interacted with (typically on click or keydown).
    */
@@ -68,7 +75,7 @@ export interface MDCChipAdapter {
   /**
    * Emits a custom "MDCChip:selection" event denoting the chip has been selected or deselected.
    */
-  notifySelection(selected: boolean): void;
+  notifySelection(selected: boolean, chipSetShouldIgnore: boolean): void;
 
   /**
    * Emits a custom "MDCChip:trailingIconInteraction" event denoting the trailing icon has been
@@ -79,7 +86,22 @@ export interface MDCChipAdapter {
   /**
    * Emits a custom event "MDCChip:removal" denoting the chip will be removed.
    */
-  notifyRemoval(): void;
+  notifyRemoval(removedAnnouncement: string|null): void;
+
+  /**
+   * Emits a custom event "MDCChip:navigation" denoting a focus navigation event.
+   */
+  notifyNavigation(key: string, source: EventSource): void;
+
+  /**
+   * Emits when editing starts.
+   */
+  notifyEditStart(): void;
+
+  /**
+   * Emits when editing finishes.
+   */
+  notifyEditFinish(): void;
 
   /**
    * @return The computed property value of the given style property on the root element.
@@ -105,4 +127,35 @@ export interface MDCChipAdapter {
    * @return The bounding client rect of the checkmark element or null if it doesn't exist.
    */
   getCheckmarkBoundingClientRect(): ClientRect | null;
+
+  /**
+   * Sets the value of the attribute on the primary action content.
+   */
+  setPrimaryActionAttr(attr: string, value: string): void;
+
+  /**
+   * Gives focus to the primary action.
+   */
+  focusPrimaryAction(): void;
+
+  /**
+   * Sets focus to the trailing action.
+   */
+  focusTrailingAction(): void;
+
+  /**
+   * Removes focus from the trailing action.
+   */
+  removeTrailingActionFocus(): void;
+
+  /**
+   * Returns true if the trailing action is navigable.
+   * Should return the value of MDCChipTrailingAction#isNavigable() or false.
+   */
+  isTrailingActionNavigable(): boolean;
+
+  /**
+   * @return true if the text direction is right-to-left.
+   */
+  isRTL(): boolean;
 }

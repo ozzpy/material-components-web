@@ -1,6 +1,6 @@
 {
   "name": "@material/card",
-  "version": "2.0.0",
+  "version": "7.0.0",
   "description": "The Material Components for the web card component",
   "license": "MIT",
   "keywords": [
@@ -10,14 +10,16 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/material-components/material-components-web.git"
+    "url": "https://github.com/material-components/material-components-web.git",
+    "directory": "packages/mdc-card"
   },
+  "sideEffects": false,
   "dependencies": {
-    "@material/elevation": "^1.1.0",
-    "@material/feature-targeting": "^0.44.1",
-    "@material/ripple": "^2.0.0",
-    "@material/rtl": "^0.42.0",
-    "@material/shape": "^1.1.1",
-    "@material/theme": "^1.1.0"
+    "@material/elevation": "^7.0.0",
+    "@material/feature-targeting": "^7.0.0",
+    "@material/ripple": "^7.0.0",
+    "@material/rtl": "^7.0.0",
+    "@material/shape": "^7.0.0",
+    "@material/theme": "^7.0.0"
   }
 }

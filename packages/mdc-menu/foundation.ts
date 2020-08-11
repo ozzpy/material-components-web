@@ -22,7 +22,7 @@
  */
 
 import {MDCFoundation} from '@material/base/foundation';
-import {MDCListFoundation} from '@material/list/foundation';
+import {cssClasses as listCssClasses} from '@material/list/constants';
 import {MDCMenuSurfaceFoundation} from '@material/menu-surface/foundation';
 import {MDCMenuAdapter} from './adapter';
 import {cssClasses, DefaultFocusState, numbers, strings} from './constants';
@@ -56,12 +56,12 @@ export class MDCMenuFoundation extends MDCFoundation<MDCMenuAdapter> {
       elementContainsClass: () => false,
       closeSurface: () => undefined,
       getElementIndex: () => -1,
-      getParentElement: () => null,
-      getSelectedElementIndex: () => -1,
       notifySelected: () => undefined,
       getMenuItemCount: () => 0,
       focusItemAtIndex: () => undefined,
       focusListRoot: () => undefined,
+      getSelectedSiblingOfItemAtIndex: () => -1,
+      isSelectableItemAtIndex: () => false,
     };
     // tslint:enable:object-literal-sort-keys
   }
@@ -75,7 +75,7 @@ export class MDCMenuFoundation extends MDCFoundation<MDCMenuAdapter> {
       clearTimeout(this.closeAnimationEndTimerId_);
     }
 
-    this.adapter_.closeSurface();
+    this.adapter.closeSurface();
   }
 
   handleKeydown(evt: KeyboardEvent) {
@@ -83,24 +83,26 @@ export class MDCMenuFoundation extends MDCFoundation<MDCMenuAdapter> {
     const isTab = key === 'Tab' || keyCode === 9;
 
     if (isTab) {
-      this.adapter_.closeSurface();
+      this.adapter.closeSurface(/** skipRestoreFocus */ true);
     }
   }
 
   handleItemAction(listItem: Element) {
-    const index = this.adapter_.getElementIndex(listItem);
+    const index = this.adapter.getElementIndex(listItem);
     if (index < 0) {
       return;
     }
 
-    this.adapter_.notifySelected({index});
-    this.adapter_.closeSurface();
+    this.adapter.notifySelected({index});
+    this.adapter.closeSurface();
 
     // Wait for the menu to close before adding/removing classes that affect styles.
     this.closeAnimationEndTimerId_ = setTimeout(() => {
-      const selectionGroup = this.getSelectionGroup_(listItem);
-      if (selectionGroup) {
-        this.handleSelectionGroup_(selectionGroup, index);
+      // Recompute the index in case the menu contents have changed.
+      const recomputedIndex = this.adapter.getElementIndex(listItem);
+      if (recomputedIndex >= 0 &&
+          this.adapter.isSelectableItemAtIndex(recomputedIndex)) {
+        this.setSelectedIndex(recomputedIndex);
       }
     }, MDCMenuSurfaceFoundation.numbers.TRANSITION_CLOSE_DURATION);
   }
@@ -108,16 +110,16 @@ export class MDCMenuFoundation extends MDCFoundation<MDCMenuAdapter> {
   handleMenuSurfaceOpened() {
     switch (this.defaultFocusState_) {
       case DefaultFocusState.FIRST_ITEM:
-        this.adapter_.focusItemAtIndex(0);
+        this.adapter.focusItemAtIndex(0);
         break;
       case DefaultFocusState.LAST_ITEM:
-        this.adapter_.focusItemAtIndex(this.adapter_.getMenuItemCount() - 1);
+        this.adapter.focusItemAtIndex(this.adapter.getMenuItemCount() - 1);
         break;
       case DefaultFocusState.NONE:
         // Do nothing.
         break;
       default:
-        this.adapter_.focusListRoot();
+        this.adapter.focusListRoot();
         break;
     }
   }
@@ -132,41 +134,58 @@ export class MDCMenuFoundation extends MDCFoundation<MDCMenuAdapter> {
   }
 
   /**
-   * Handles toggling the selected classes in a selection group when a selection is made.
+   * Selects the list item at `index` within the menu.
+   * @param index Index of list item within the menu.
    */
-  private handleSelectionGroup_(selectionGroup: Element, index: number) {
-    // De-select the previous selection in this group.
-    const selectedIndex = this.adapter_.getSelectedElementIndex(selectionGroup);
-    if (selectedIndex >= 0) {
-      this.adapter_.removeAttributeFromElementAtIndex(selectedIndex, strings.ARIA_SELECTED_ATTR);
-      this.adapter_.removeClassFromElementAtIndex(selectedIndex, cssClasses.MENU_SELECTED_LIST_ITEM);
+  setSelectedIndex(index: number) {
+    this.validatedIndex_(index);
+
+    if (!this.adapter.isSelectableItemAtIndex(index)) {
+      throw new Error('MDCMenuFoundation: No selection group at specified index.');
     }
-    // Select the new list item in this group.
-    this.adapter_.addClassToElementAtIndex(index, cssClasses.MENU_SELECTED_LIST_ITEM);
-    this.adapter_.addAttributeToElementAtIndex(index, strings.ARIA_SELECTED_ATTR, 'true');
+
+    const prevSelectedIndex =
+        this.adapter.getSelectedSiblingOfItemAtIndex(index);
+    if (prevSelectedIndex >= 0) {
+      this.adapter.removeAttributeFromElementAtIndex(
+          prevSelectedIndex, strings.ARIA_CHECKED_ATTR);
+      this.adapter.removeClassFromElementAtIndex(
+          prevSelectedIndex, cssClasses.MENU_SELECTED_LIST_ITEM);
+    }
+
+    this.adapter.addClassToElementAtIndex(
+        index, cssClasses.MENU_SELECTED_LIST_ITEM);
+    this.adapter.addAttributeToElementAtIndex(
+        index, strings.ARIA_CHECKED_ATTR, 'true');
   }
 
   /**
-   * Returns the parent selection group of an element if one exists.
+   * Sets the enabled state to isEnabled for the menu item at the given index.
+   * @param index Index of the menu item
+   * @param isEnabled The desired enabled state of the menu item.
    */
-  private getSelectionGroup_(listItem: Element): Element | null {
-    let parent = this.adapter_.getParentElement(listItem);
-    if (!parent) {
-      return null;
-    }
+  setEnabled(index: number, isEnabled: boolean): void {
+    this.validatedIndex_(index);
 
-    let isGroup = this.adapter_.elementContainsClass(parent, cssClasses.MENU_SELECTION_GROUP);
-
-    // Iterate through ancestors until we find the group or get to the list.
-    while (!isGroup && parent && !this.adapter_.elementContainsClass(parent, MDCListFoundation.cssClasses.ROOT)) {
-      parent = this.adapter_.getParentElement(parent);
-      isGroup = parent ? this.adapter_.elementContainsClass(parent, cssClasses.MENU_SELECTION_GROUP) : false;
-    }
-
-    if (isGroup) {
-      return parent;
+    if (isEnabled) {
+      this.adapter.removeClassFromElementAtIndex(
+          index, listCssClasses.LIST_ITEM_DISABLED_CLASS);
+      this.adapter.addAttributeToElementAtIndex(
+          index, strings.ARIA_DISABLED_ATTR, 'false');
     } else {
-      return null;
+      this.adapter.addClassToElementAtIndex(
+          index, listCssClasses.LIST_ITEM_DISABLED_CLASS);
+      this.adapter.addAttributeToElementAtIndex(
+          index, strings.ARIA_DISABLED_ATTR, 'true');
+    }
+  }
+
+  private validatedIndex_(index: number): void {
+    const menuSize = this.adapter.getMenuItemCount();
+    const isIndexInRange = index >= 0 && index < menuSize;
+
+    if (!isIndexInRange) {
+      throw new Error('MDCMenuFoundation: No list item at specified index.');
     }
   }
 }

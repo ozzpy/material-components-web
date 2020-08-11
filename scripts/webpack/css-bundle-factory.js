@@ -28,6 +28,7 @@
 'use strict';
 
 const autoprefixer = require('autoprefixer');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 class CssBundleFactory {
   constructor({
@@ -95,6 +96,9 @@ class CssBundleFactory {
           use: this.createCssLoader_(cssExtractorPlugin),
         }],
       },
+      optimization: {
+        minimize: this.env_.isProd(),
+      },
       plugins: [
         cssExtractorPlugin,
         ...fsCleanupPlugins,
@@ -142,17 +146,19 @@ class CssBundleFactory {
     return this.createCustomCss({
       bundleName: 'main-css-a-la-carte',
       chunks: {
+        'mdc.banner': getAbsolutePath('/packages/mdc-banner/styles.scss'),
         'mdc.button': getAbsolutePath('/packages/mdc-button/mdc-button.scss'),
         'mdc.card': getAbsolutePath('/packages/mdc-card/mdc-card.scss'),
         'mdc.checkbox': getAbsolutePath('/packages/mdc-checkbox/mdc-checkbox.scss'),
         'mdc.chips': getAbsolutePath('/packages/mdc-chips/mdc-chips.scss'),
+        'mdc.circular-progress': getAbsolutePath('/packages/mdc-circular-progress/mdc-circular-progress.scss'),
+        'mdc.data-table': getAbsolutePath('/packages/mdc-data-table/mdc-data-table.scss'),
         'mdc.dialog': getAbsolutePath('/packages/mdc-dialog/mdc-dialog.scss'),
         'mdc.drawer': getAbsolutePath('/packages/mdc-drawer/mdc-drawer.scss'),
         'mdc.elevation': getAbsolutePath('/packages/mdc-elevation/mdc-elevation.scss'),
         'mdc.fab': getAbsolutePath('/packages/mdc-fab/mdc-fab.scss'),
         'mdc.floating-label': getAbsolutePath('/packages/mdc-floating-label/mdc-floating-label.scss'),
         'mdc.form-field': getAbsolutePath('/packages/mdc-form-field/mdc-form-field.scss'),
-        'mdc.grid-list': getAbsolutePath('/packages/mdc-grid-list/mdc-grid-list.scss'),
         'mdc.icon-button': getAbsolutePath('/packages/mdc-icon-button/mdc-icon-button.scss'),
         'mdc.image-list': getAbsolutePath('/packages/mdc-image-list/mdc-image-list.scss'),
         'mdc.layout-grid': getAbsolutePath('/packages/mdc-layout-grid/mdc-layout-grid.scss'),
@@ -164,18 +170,18 @@ class CssBundleFactory {
         'mdc.notched-outline': getAbsolutePath('/packages/mdc-notched-outline/mdc-notched-outline.scss'),
         'mdc.radio': getAbsolutePath('/packages/mdc-radio/mdc-radio.scss'),
         'mdc.ripple': getAbsolutePath('/packages/mdc-ripple/mdc-ripple.scss'),
+        'mdc.segmented-button': getAbsolutePath('/packages/mdc-segmented-button/styles.scss'),
         'mdc.select': getAbsolutePath('/packages/mdc-select/mdc-select.scss'),
-        'mdc.slider': getAbsolutePath('/packages/mdc-slider/mdc-slider.scss'),
+        'mdc.slider': getAbsolutePath('/packages/mdc-slider/styles.scss'),
         'mdc.snackbar': getAbsolutePath('/packages/mdc-snackbar/mdc-snackbar.scss'),
         'mdc.switch': getAbsolutePath('/packages/mdc-switch/mdc-switch.scss'),
         'mdc.tab': getAbsolutePath('/packages/mdc-tab/mdc-tab.scss'),
         'mdc.tab-bar': getAbsolutePath('/packages/mdc-tab-bar/mdc-tab-bar.scss'),
         'mdc.tab-indicator': getAbsolutePath('/packages/mdc-tab-indicator/mdc-tab-indicator.scss'),
         'mdc.tab-scroller': getAbsolutePath('/packages/mdc-tab-scroller/mdc-tab-scroller.scss'),
-        'mdc.tabs': getAbsolutePath('/packages/mdc-tabs/mdc-tabs.scss'),
         'mdc.textfield': getAbsolutePath('/packages/mdc-textfield/mdc-text-field.scss'),
         'mdc.theme': getAbsolutePath('/packages/mdc-theme/mdc-theme.scss'),
-        'mdc.toolbar': getAbsolutePath('/packages/mdc-toolbar/mdc-toolbar.scss'),
+        'mdc.tooltip': getAbsolutePath('/packages/mdc-tooltip/styles.scss'),
         'mdc.top-app-bar': getAbsolutePath('/packages/mdc-top-app-bar/mdc-top-app-bar.scss'),
         'mdc.typography': getAbsolutePath('/packages/mdc-typography/mdc-typography.scss'),
       },
@@ -190,35 +196,34 @@ class CssBundleFactory {
     });
   }
 
-  createCssLoader_(extractTextPlugin) {
+  createCssLoader_() {
     const getAbsolutePath = (...args) => this.pathResolver_.getAbsolutePath(...args);
 
-    return extractTextPlugin.extract({
-      use: [
-        {
-          loader: 'css-loader',
-          options: {
-            sourceMap: true,
-          },
+    return [
+      MiniCssExtractPlugin.loader,
+      {
+        loader: 'css-loader',
+        options: {
+          sourceMap: true,
         },
-        {
-          loader: 'postcss-loader',
-          options: {
-            sourceMap: true,
-            plugins: () => [this.autoprefixerLib_()],
-          },
+      },
+      {
+        loader: 'postcss-loader',
+        options: {
+          sourceMap: true,
+          plugins: () => [this.autoprefixerLib_()],
         },
-        {
-          loader: 'sass-loader',
-          options: {
-            sourceMap: true,
-            includePaths: [getAbsolutePath('/packages/material-components-web/node_modules')],
-            implementation: require('dart-sass'),
-            fiber: require('fibers'),
-          },
+      },
+      {
+        loader: 'sass-loader',
+        options: {
+          sourceMap: true,
+          includePaths: [getAbsolutePath('/packages/material-components-web/node_modules')],
+          implementation: require('dart-sass'),
+          fiber: require('fibers'),
         },
-      ],
-    });
+      },
+    ];
   }
 }
 

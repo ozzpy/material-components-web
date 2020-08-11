@@ -60,13 +60,6 @@ if ! ssh -T git@github.com 2>&1 | grep -q "You've successfully authenticated"; t
   exit 1
 fi
 
-log "Checking that you can deploy the MDC Web demo site..."
-if ! gcloud config get-value project 2>/dev/null | grep -q material-components-web; then
-  fail "Your gcloud project is not configured for MDC Web. Please run gcloud config set" \
-       "project material-components-web and ensure it exits successfully"
-  exit 1
-fi
-
 log "Running npm test to ensure no breakages..."
 npm test
 echo ""
@@ -83,6 +76,5 @@ log "Verifying that all packages are correctly pointing main to dist..."
 node scripts/verify-pkg-main.js
 echo ""
 
-log "Pre-release steps done! Next, continue with the Release step in the Release Process documentation:"
-echo "https://github.com/material-components/material-components-web/blob/master/docs/open_source/release-process.md#release"
+log "Pre-release steps done! Next, continue with the Release process."
 echo ""

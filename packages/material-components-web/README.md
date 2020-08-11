@@ -14,7 +14,7 @@ npm install material-components-web
 ### Including the Sass
 
 ```scss
-@import "material-components-web/material-components-web";
+@use "material-components-web/material-components-web";
 ```
 
 ### Including the Javascript
@@ -40,7 +40,7 @@ The `material-components-web` package automatically registers all MDC Web compon
 [mdc-auto-init](../mdc-auto-init), making it dead simple to create and initialize components
 with zero configuration or manual work.
 
-For example, say you want to use an [icon button toogle](../mdc-icon-button). Simply render the necessary
+For example, say you want to use an [icon button toggle](../mdc-icon-button). Simply render the necessary
 DOM, and attach the `data-mdc-auto-init="MDCIconButtonToggle"` attribute.
 
 ```html

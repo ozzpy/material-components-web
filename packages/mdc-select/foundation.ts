@@ -22,6 +22,9 @@
  */
 
 import {MDCFoundation} from '@material/base/foundation';
+import {KEY, normalizeKey} from '@material/dom/keyboard';
+import {Corner} from '@material/menu-surface/constants';
+
 import {MDCSelectAdapter} from './adapter';
 import {cssClasses, numbers, strings} from './constants';
 import {MDCSelectHelperTextFoundation} from './helper-text/foundation';
@@ -52,28 +55,54 @@ export class MDCSelectFoundation extends MDCFoundation<MDCSelectAdapter> {
       hasClass: () => false,
       activateBottomLine: () => undefined,
       deactivateBottomLine: () => undefined,
-      setValue: () => undefined,
-      getValue: () => '',
+      getSelectedIndex: () => -1,
+      setSelectedIndex: () => undefined,
+      hasLabel: () => false,
       floatLabel: () => undefined,
       getLabelWidth: () => 0,
+      setLabelRequired: () => undefined,
       hasOutline: () => false,
       notchOutline: () => undefined,
       closeOutline: () => undefined,
-      openMenu: () => undefined,
-      closeMenu: () => undefined,
-      isMenuOpen: () => false,
-      setSelectedIndex: () => undefined,
-      setDisabled: () => undefined,
       setRippleCenter: () => undefined,
       notifyChange: () => undefined,
-      checkValidity: () => false,
-      setValid: () => undefined,
+      setSelectedText: () => undefined,
+      isSelectAnchorFocused: () => false,
+      getSelectAnchorAttr: () => '',
+      setSelectAnchorAttr: () => undefined,
+      removeSelectAnchorAttr: () => undefined,
+      addMenuClass: () => undefined,
+      removeMenuClass: () => undefined,
+      openMenu: () => undefined,
+      closeMenu: () => undefined,
+      getAnchorElement: () => null,
+      setMenuAnchorElement: () => undefined,
+      setMenuAnchorCorner: () => undefined,
+      setMenuWrapFocus: () => undefined,
+      focusMenuItemAtIndex: () => undefined,
+      getMenuItemCount: () => 0,
+      getMenuItemValues: () => [],
+      getMenuItemTextAtIndex: () => '',
+      isTypeaheadInProgress: () => false,
+      typeaheadMatchItem: () => -1,
     };
     // tslint:enable:object-literal-sort-keys
   }
 
-  private readonly leadingIcon_: MDCSelectIconFoundation | undefined;
-  private readonly helperText_: MDCSelectHelperTextFoundation | undefined;
+  private readonly leadingIcon: MDCSelectIconFoundation|undefined;
+  private readonly helperText: MDCSelectHelperTextFoundation|undefined;
+
+  // Disabled state
+  private disabled = false;
+  // isMenuOpen is used to track the state of the menu by listening to the
+  // MDCMenuSurface:closed event For reference, menu.open will return false if
+  // the menu is still closing, but isMenuOpen returns false only after the menu
+  // has closed
+  private isMenuOpen = false;
+  // By default, select is invalid if it is required but no value is selected.
+  private useDefaultValidation = true;
+  private customValidity = true;
+  private lastSelectedIndex = numbers.UNSET_INDEX;
 
   /* istanbul ignore next: optional argument is not a branch statement */
   /**
@@ -83,155 +112,256 @@ export class MDCSelectFoundation extends MDCFoundation<MDCSelectAdapter> {
   constructor(adapter?: Partial<MDCSelectAdapter>, foundationMap: Partial<MDCSelectFoundationMap> = {}) {
     super({...MDCSelectFoundation.defaultAdapter, ...adapter});
 
-    this.leadingIcon_ = foundationMap.leadingIcon;
-    this.helperText_ = foundationMap.helperText;
+    this.leadingIcon = foundationMap.leadingIcon;
+    this.helperText = foundationMap.helperText;
   }
 
-  setSelectedIndex(index: number) {
-    this.adapter_.setSelectedIndex(index);
-    this.adapter_.closeMenu();
-    const didChange = true;
-    this.handleChange(didChange);
+  /** Returns the index of the currently selected menu item, or -1 if none. */
+  getSelectedIndex(): number {
+    return this.adapter.getSelectedIndex();
+  }
+
+  setSelectedIndex(index: number, closeMenu = false, skipNotify = false) {
+    if (index >= this.adapter.getMenuItemCount()) {
+      return;
+    }
+
+    if (index === numbers.UNSET_INDEX) {
+      this.adapter.setSelectedText('');
+    } else {
+      this.adapter.setSelectedText(
+          this.adapter.getMenuItemTextAtIndex(index).trim());
+    }
+
+    this.adapter.setSelectedIndex(index);
+
+    if (closeMenu) {
+      this.adapter.closeMenu();
+    }
+
+    if (!skipNotify && this.lastSelectedIndex !== index) {
+      this.handleChange();
+    }
+    this.lastSelectedIndex = index;
   }
 
   setValue(value: string) {
-    this.adapter_.setValue(value);
-    const didChange = true;
-    this.handleChange(didChange);
+    const index = this.adapter.getMenuItemValues().indexOf(value);
+    this.setSelectedIndex(index);
   }
 
   getValue() {
-    return this.adapter_.getValue();
+    const index = this.adapter.getSelectedIndex();
+    const menuItemValues = this.adapter.getMenuItemValues();
+    return index !== numbers.UNSET_INDEX ? menuItemValues[index] : '';
+  }
+
+  getDisabled() {
+    return this.disabled;
   }
 
   setDisabled(isDisabled: boolean) {
-    if (isDisabled) {
-      this.adapter_.addClass(cssClasses.DISABLED);
+    this.disabled = isDisabled;
+    if (this.disabled) {
+      this.adapter.addClass(cssClasses.DISABLED);
+      this.adapter.closeMenu();
     } else {
-      this.adapter_.removeClass(cssClasses.DISABLED);
+      this.adapter.removeClass(cssClasses.DISABLED);
     }
-    this.adapter_.setDisabled(isDisabled);
-    this.adapter_.closeMenu();
 
-    if (this.leadingIcon_) {
-      this.leadingIcon_.setDisabled(isDisabled);
+    if (this.leadingIcon) {
+      this.leadingIcon.setDisabled(this.disabled);
     }
+
+    if (this.disabled) {
+      // Prevent click events from focusing select. Simply pointer-events: none
+      // is not enough since screenreader clicks may bypass this.
+      this.adapter.removeSelectAnchorAttr('tabindex');
+    } else {
+      this.adapter.setSelectAnchorAttr('tabindex', '0');
+    }
+
+    this.adapter.setSelectAnchorAttr('aria-disabled', this.disabled.toString());
+  }
+
+  /** Opens the menu. */
+  openMenu() {
+    this.adapter.addClass(cssClasses.ACTIVATED);
+    this.adapter.openMenu();
+    this.isMenuOpen = true;
+    this.adapter.setSelectAnchorAttr('aria-expanded', 'true');
   }
 
   /**
    * @param content Sets the content of the helper text.
    */
   setHelperTextContent(content: string) {
-    if (this.helperText_) {
-      this.helperText_.setContent(content);
+    if (this.helperText) {
+      this.helperText.setContent(content);
     }
   }
 
+  /**
+   * Re-calculates if the notched outline should be notched and if the label
+   * should float.
+   */
   layout() {
-    const openNotch = this.getValue().length > 0;
-    this.notchOutline(openNotch);
+    if (this.adapter.hasLabel()) {
+      const optionHasValue = this.getValue().length > 0;
+      const isFocused = this.adapter.hasClass(cssClasses.FOCUSED);
+      const shouldFloatAndNotch = optionHasValue || isFocused;
+      const isRequired = this.adapter.hasClass(cssClasses.REQUIRED);
+
+      this.notchOutline(shouldFloatAndNotch);
+      this.adapter.floatLabel(shouldFloatAndNotch);
+      this.adapter.setLabelRequired(isRequired);
+    }
+  }
+
+  /**
+   * Synchronizes the list of options with the state of the foundation. Call
+   * this whenever menu options are dynamically updated.
+   */
+  layoutOptions() {
+    const menuItemValues = this.adapter.getMenuItemValues();
+    const selectedIndex = menuItemValues.indexOf(this.getValue());
+    this.setSelectedIndex(
+        selectedIndex, /** closeMenu */ false, /** skipNotify */ true);
+  }
+
+  handleMenuOpened() {
+    if (this.adapter.getMenuItemValues().length === 0) {
+      return;
+    }
+
+    // Menu should open to the last selected element, should open to first menu item otherwise.
+    const selectedIndex = this.getSelectedIndex();
+    const focusItemIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    this.adapter.focusMenuItemAtIndex(focusItemIndex);
+  }
+
+  handleMenuClosed() {
+    this.adapter.removeClass(cssClasses.ACTIVATED);
+    this.isMenuOpen = false;
+    this.adapter.setSelectAnchorAttr('aria-expanded', 'false');
+
+    // Unfocus the select if menu is closed without a selection
+    if (!this.adapter.isSelectAnchorFocused()) {
+      this.blur();
+    }
   }
 
   /**
    * Handles value changes, via change event or programmatic updates.
    */
-  handleChange(didChange = true) {
-    const value = this.getValue();
-    const optionHasValue = value.length > 0;
-    const isRequired = this.adapter_.hasClass(cssClasses.REQUIRED);
+  handleChange() {
+    this.layout();
+    this.adapter.notifyChange(this.getValue());
 
-    this.notchOutline(optionHasValue);
-
-    if (!this.adapter_.hasClass(cssClasses.FOCUSED)) {
-      this.adapter_.floatLabel(optionHasValue);
+    const isRequired = this.adapter.hasClass(cssClasses.REQUIRED);
+    if (isRequired && this.useDefaultValidation) {
+      this.setValid(this.isValid());
     }
+  }
 
-    if (didChange) {
-      this.adapter_.notifyChange(value);
-
-      if (isRequired) {
-        this.setValid(this.isValid());
-        if (this.helperText_) {
-          this.helperText_.setValidity(this.isValid());
-        }
-      }
-    }
+  handleMenuItemAction(index: number) {
+    this.setSelectedIndex(index, /** closeMenu */ true);
   }
 
   /**
    * Handles focus events from select element.
    */
   handleFocus() {
-    this.adapter_.addClass(cssClasses.FOCUSED);
-    this.adapter_.floatLabel(true);
-    this.notchOutline(true);
-    this.adapter_.activateBottomLine();
-    if (this.helperText_) {
-      this.helperText_.showToScreenReader();
-    }
+    this.adapter.addClass(cssClasses.FOCUSED);
+    this.layout();
+
+    this.adapter.activateBottomLine();
   }
 
   /**
    * Handles blur events from select element.
    */
   handleBlur() {
-    if (this.adapter_.isMenuOpen()) {
+    if (this.isMenuOpen) {
       return;
     }
-    this.adapter_.removeClass(cssClasses.FOCUSED);
-    this.handleChange(false);
-    this.adapter_.deactivateBottomLine();
-
-    const isRequired = this.adapter_.hasClass(cssClasses.REQUIRED);
-
-    if (isRequired) {
-      this.setValid(this.isValid());
-      if (this.helperText_) {
-        this.helperText_.setValidity(this.isValid());
-      }
-    }
+    this.blur();
   }
 
   handleClick(normalizedX: number) {
-    if (this.adapter_.isMenuOpen()) {
+    if (this.disabled) {
       return;
     }
-    this.adapter_.setRippleCenter(normalizedX);
 
-    this.adapter_.openMenu();
+    if (this.isMenuOpen) {
+      this.adapter.closeMenu();
+      return;
+    }
+
+    this.adapter.setRippleCenter(normalizedX);
+
+    this.openMenu();
   }
 
+  /**
+   * Handles keydown events on select element. Depending on the type of
+   * character typed, does typeahead matching or opens menu.
+   */
   handleKeydown(event: KeyboardEvent) {
-    if (this.adapter_.isMenuOpen()) {
+    if (this.isMenuOpen || !this.adapter.hasClass(cssClasses.FOCUSED)) {
       return;
     }
 
-    const isEnter = event.key === 'Enter' || event.keyCode === 13;
-    const isSpace = event.key === 'Space' || event.keyCode === 32;
-    const arrowUp = event.key === 'ArrowUp' || event.keyCode === 38;
-    const arrowDown = event.key === 'ArrowDown' || event.keyCode === 40;
+    const isEnter = normalizeKey(event) === KEY.ENTER;
+    const isSpace = normalizeKey(event) === KEY.SPACEBAR;
+    const arrowUp = normalizeKey(event) === KEY.ARROW_UP;
+    const arrowDown = normalizeKey(event) === KEY.ARROW_DOWN;
 
-    if (this.adapter_.hasClass(cssClasses.FOCUSED) && (isEnter || isSpace || arrowUp || arrowDown)) {
-      this.adapter_.openMenu();
+    // Typeahead
+    if (!isSpace && event.key && event.key.length === 1 ||
+        isSpace && this.adapter.isTypeaheadInProgress()) {
+      const key = isSpace ? ' ' : event.key;
+      const typeaheadNextIndex =
+          this.adapter.typeaheadMatchItem(key, this.getSelectedIndex());
+      if (typeaheadNextIndex >= 0) {
+        this.setSelectedIndex(typeaheadNextIndex);
+      }
       event.preventDefault();
+      return;
     }
+
+    if (!isEnter && !isSpace && !arrowUp && !arrowDown) {
+      return;
+    }
+
+    // Increment/decrement index as necessary and open menu.
+    if (arrowUp && this.getSelectedIndex() > 0) {
+      this.setSelectedIndex(this.getSelectedIndex() - 1);
+    } else if (
+        arrowDown &&
+        this.getSelectedIndex() < this.adapter.getMenuItemCount() - 1) {
+      this.setSelectedIndex(this.getSelectedIndex() + 1);
+    }
+
+    this.openMenu();
+    event.preventDefault();
   }
 
   /**
    * Opens/closes the notched outline.
    */
   notchOutline(openNotch: boolean) {
-    if (!this.adapter_.hasOutline()) {
+    if (!this.adapter.hasOutline()) {
       return;
     }
-    const isFocused = this.adapter_.hasClass(cssClasses.FOCUSED);
+    const isFocused = this.adapter.hasClass(cssClasses.FOCUSED);
 
     if (openNotch) {
       const labelScale = numbers.LABEL_SCALE;
-      const labelWidth = this.adapter_.getLabelWidth() * labelScale;
-      this.adapter_.notchOutline(labelWidth);
+      const labelWidth = this.adapter.getLabelWidth() * labelScale;
+      this.adapter.notchOutline(labelWidth);
     } else if (!isFocused) {
-      this.adapter_.closeOutline();
+      this.adapter.closeOutline();
     }
   }
 
@@ -239,8 +369,8 @@ export class MDCSelectFoundation extends MDCFoundation<MDCSelectAdapter> {
    * Sets the aria label of the leading icon.
    */
   setLeadingIconAriaLabel(label: string) {
-    if (this.leadingIcon_) {
-      this.leadingIcon_.setAriaLabel(label);
+    if (this.leadingIcon) {
+      this.leadingIcon.setAriaLabel(label);
     }
   }
 
@@ -248,17 +378,103 @@ export class MDCSelectFoundation extends MDCFoundation<MDCSelectAdapter> {
    * Sets the text content of the leading icon.
    */
   setLeadingIconContent(content: string) {
-    if (this.leadingIcon_) {
-      this.leadingIcon_.setContent(content);
+    if (this.leadingIcon) {
+      this.leadingIcon.setContent(content);
     }
   }
 
+  setUseDefaultValidation(useDefaultValidation: boolean) {
+    this.useDefaultValidation = useDefaultValidation;
+  }
+
   setValid(isValid: boolean) {
-    this.adapter_.setValid(isValid);
+    if (!this.useDefaultValidation) {
+      this.customValidity = isValid;
+    }
+
+    this.adapter.setSelectAnchorAttr('aria-invalid', (!isValid).toString());
+    if (isValid) {
+      this.adapter.removeClass(cssClasses.INVALID);
+      this.adapter.removeMenuClass(cssClasses.MENU_INVALID);
+    } else {
+      this.adapter.addClass(cssClasses.INVALID);
+      this.adapter.addMenuClass(cssClasses.MENU_INVALID);
+    }
+
+    this.syncHelperTextValidity(isValid);
   }
 
   isValid() {
-    return this.adapter_.checkValidity();
+    if (this.useDefaultValidation &&
+        this.adapter.hasClass(cssClasses.REQUIRED) &&
+        !this.adapter.hasClass(cssClasses.DISABLED)) {
+      // See notes for required attribute under https://www.w3.org/TR/html52/sec-forms.html#the-select-element
+      // TL;DR: Invalid if no index is selected, or if the first index is selected and has an empty value.
+      return this.getSelectedIndex() !== numbers.UNSET_INDEX &&
+          (this.getSelectedIndex() !== 0 || Boolean(this.getValue()));
+    }
+    return this.customValidity;
+  }
+
+  setRequired(isRequired: boolean) {
+    if (isRequired) {
+      this.adapter.addClass(cssClasses.REQUIRED);
+    } else {
+      this.adapter.removeClass(cssClasses.REQUIRED);
+    }
+    this.adapter.setSelectAnchorAttr('aria-required', isRequired.toString());
+    this.adapter.setLabelRequired(isRequired);
+  }
+
+  getRequired() {
+    return this.adapter.getSelectAnchorAttr('aria-required') === 'true';
+  }
+
+  init() {
+    const anchorEl = this.adapter.getAnchorElement();
+    if (anchorEl) {
+      this.adapter.setMenuAnchorElement(anchorEl);
+      this.adapter.setMenuAnchorCorner(Corner.BOTTOM_START);
+    }
+    this.adapter.setMenuWrapFocus(false);
+
+    this.setDisabled(this.adapter.hasClass(cssClasses.DISABLED));
+    this.syncHelperTextValidity(!this.adapter.hasClass(cssClasses.INVALID));
+    this.layout();
+    this.layoutOptions();
+  }
+
+  /**
+   * Unfocuses the select component.
+   */
+  private blur() {
+    this.adapter.removeClass(cssClasses.FOCUSED);
+    this.layout();
+    this.adapter.deactivateBottomLine();
+
+    const isRequired = this.adapter.hasClass(cssClasses.REQUIRED);
+    if (isRequired && this.useDefaultValidation) {
+      this.setValid(this.isValid());
+    }
+  }
+
+  private syncHelperTextValidity(isValid: boolean) {
+    if (!this.helperText) {
+      return;
+    }
+
+    this.helperText.setValidity(isValid);
+
+    const helperTextVisible = this.helperText.isVisible();
+    const helperTextId = this.helperText.getId();
+
+    if (helperTextVisible && helperTextId) {
+      this.adapter.setSelectAnchorAttr(strings.ARIA_DESCRIBEDBY, helperTextId);
+    } else {
+      // Needed because screenreaders will read labels pointed to by
+      // `aria-describedby` even if they are `aria-hidden`.
+      this.adapter.removeSelectAnchorAttr(strings.ARIA_DESCRIBEDBY);
+    }
   }
 }
 

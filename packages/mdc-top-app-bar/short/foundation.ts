@@ -33,6 +33,8 @@ export class MDCShortTopAppBarFoundation extends MDCTopAppBarBaseFoundation {
 
   private isCollapsed_ = false;
 
+  private isAlwaysCollapsed_ = false;
+
   /* istanbul ignore next: optional argument is not a branch statement */
   constructor(adapter?: Partial<MDCTopAppBarAdapter>) {
     super(adapter);
@@ -41,38 +43,67 @@ export class MDCShortTopAppBarFoundation extends MDCTopAppBarBaseFoundation {
   init() {
     super.init();
 
-    if (this.adapter_.getTotalActionItems() > 0) {
-      this.adapter_.addClass(cssClasses.SHORT_HAS_ACTION_ITEM_CLASS);
+    if (this.adapter.getTotalActionItems() > 0) {
+      this.adapter.addClass(cssClasses.SHORT_HAS_ACTION_ITEM_CLASS);
     }
 
-    if (!this.adapter_.hasClass(cssClasses.SHORT_COLLAPSED_CLASS)) {
-      this.scrollHandler_ = () => this.shortAppBarScrollHandler_();
-      this.adapter_.registerScrollHandler(this.scrollHandler_);
-      this.shortAppBarScrollHandler_();
+    // If initialized with SHORT_COLLAPSED_CLASS, the bar should always be collapsed
+    this.setAlwaysCollapsed(
+      this.adapter.hasClass(cssClasses.SHORT_COLLAPSED_CLASS));
+  }
+
+  /**
+   * Set if the short top app bar should always be collapsed.
+   *
+   * @param value When `true`, bar will always be collapsed. When `false`, bar may collapse or expand based on scroll.
+   */
+  setAlwaysCollapsed(value: boolean) {
+    this.isAlwaysCollapsed_ = !!value;
+    if (this.isAlwaysCollapsed_) {
+      this.collapse_();
+    } else {
+      // let maybeCollapseBar_ determine if the bar should be collapsed
+      this.maybeCollapseBar_();
     }
   }
 
-  destroy() {
-    super.destroy();
+  getAlwaysCollapsed() {
+    return this.isAlwaysCollapsed_;
   }
 
   /**
    * Scroll handler for applying/removing the collapsed modifier class on the short top app bar.
+   * @override
    */
-  private shortAppBarScrollHandler_() {
-    const currentScroll = this.adapter_.getViewportScrollY();
+  handleTargetScroll() {
+    this.maybeCollapseBar_();
+  }
+
+  private maybeCollapseBar_() {
+    if (this.isAlwaysCollapsed_) {
+      return;
+    }
+    const currentScroll = this.adapter.getViewportScrollY();
 
     if (currentScroll <= 0) {
       if (this.isCollapsed_) {
-        this.adapter_.removeClass(cssClasses.SHORT_COLLAPSED_CLASS);
-        this.isCollapsed_ = false;
+        this.uncollapse_();
       }
     } else {
       if (!this.isCollapsed_) {
-        this.adapter_.addClass(cssClasses.SHORT_COLLAPSED_CLASS);
-        this.isCollapsed_ = true;
+        this.collapse_();
       }
     }
+  }
+
+  private uncollapse_() {
+    this.adapter.removeClass(cssClasses.SHORT_COLLAPSED_CLASS);
+    this.isCollapsed_ = false;
+  }
+
+  private collapse_() {
+    this.adapter.addClass(cssClasses.SHORT_COLLAPSED_CLASS);
+    this.isCollapsed_ = true;
   }
 }
 

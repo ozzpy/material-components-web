@@ -23,6 +23,7 @@
 
 import {MDCComponent} from '@material/base/component';
 import {SpecificEventListener} from '@material/base/types';
+import {applyPassive} from '@material/dom/events';
 import {matches} from '@material/dom/ponyfill';
 import {MDCTabScrollerAdapter} from './adapter';
 import {MDCTabScrollerFoundation} from './foundation';
@@ -43,30 +44,32 @@ export class MDCTabScroller extends MDCComponent<MDCTabScrollerFoundation> {
   private handleTransitionEnd_!: SpecificEventListener<'transitionend'>; // assigned in initialSyncWithDOM()
 
   initialize() {
-    this.area_ = this.root_.querySelector<HTMLElement>(MDCTabScrollerFoundation.strings.AREA_SELECTOR)!;
-    this.content_ = this.root_.querySelector<HTMLElement>(MDCTabScrollerFoundation.strings.CONTENT_SELECTOR)!;
+    this.area_ = this.root.querySelector<HTMLElement>(
+        MDCTabScrollerFoundation.strings.AREA_SELECTOR)!;
+    this.content_ = this.root.querySelector<HTMLElement>(
+        MDCTabScrollerFoundation.strings.CONTENT_SELECTOR)!;
   }
 
   initialSyncWithDOM() {
-    this.handleInteraction_ = () => this.foundation_.handleInteraction();
-    this.handleTransitionEnd_ = (evt) => this.foundation_.handleTransitionEnd(evt);
+    this.handleInteraction_ = () => this.foundation.handleInteraction();
+    this.handleTransitionEnd_ = (evt) => this.foundation.handleTransitionEnd(evt);
 
-    this.area_.addEventListener('wheel', this.handleInteraction_);
-    this.area_.addEventListener('touchstart', this.handleInteraction_);
-    this.area_.addEventListener('pointerdown', this.handleInteraction_);
-    this.area_.addEventListener('mousedown', this.handleInteraction_);
-    this.area_.addEventListener('keydown', this.handleInteraction_);
+    this.area_.addEventListener('wheel', this.handleInteraction_, applyPassive());
+    this.area_.addEventListener('touchstart', this.handleInteraction_, applyPassive());
+    this.area_.addEventListener('pointerdown', this.handleInteraction_, applyPassive());
+    this.area_.addEventListener('mousedown', this.handleInteraction_, applyPassive());
+    this.area_.addEventListener('keydown', this.handleInteraction_, applyPassive());
     this.content_.addEventListener('transitionend', this.handleTransitionEnd_);
   }
 
   destroy() {
     super.destroy();
 
-    this.area_.removeEventListener('wheel', this.handleInteraction_);
-    this.area_.removeEventListener('touchstart', this.handleInteraction_);
-    this.area_.removeEventListener('pointerdown', this.handleInteraction_);
-    this.area_.removeEventListener('mousedown', this.handleInteraction_);
-    this.area_.removeEventListener('keydown', this.handleInteraction_);
+    this.area_.removeEventListener('wheel', this.handleInteraction_, applyPassive());
+    this.area_.removeEventListener('touchstart', this.handleInteraction_, applyPassive());
+    this.area_.removeEventListener('pointerdown', this.handleInteraction_, applyPassive());
+    this.area_.removeEventListener('mousedown', this.handleInteraction_, applyPassive());
+    this.area_.removeEventListener('keydown', this.handleInteraction_, applyPassive());
     this.content_.removeEventListener('transitionend', this.handleTransitionEnd_);
   }
 
@@ -75,20 +78,26 @@ export class MDCTabScroller extends MDCComponent<MDCTabScrollerFoundation> {
     // To ensure we don't accidentally omit any methods, we need a separate, strongly typed adapter variable.
     // tslint:disable:object-literal-sort-keys Methods should be in the same order as the adapter interface.
     const adapter: MDCTabScrollerAdapter = {
-      eventTargetMatchesSelector: (evtTarget, selector) => matches(evtTarget as Element, selector),
-      addClass: (className) => this.root_.classList.add(className),
-      removeClass: (className) => this.root_.classList.remove(className),
+      eventTargetMatchesSelector: (evtTarget, selector) =>
+          matches(evtTarget as Element, selector),
+      addClass: (className) => this.root.classList.add(className),
+      removeClass: (className) => this.root.classList.remove(className),
       addScrollAreaClass: (className) => this.area_.classList.add(className),
-      setScrollAreaStyleProperty: (prop, value) => this.area_.style.setProperty(prop, value),
-      setScrollContentStyleProperty: (prop, value) => this.content_.style.setProperty(prop, value),
-      getScrollContentStyleValue: (propName) => window.getComputedStyle(this.content_).getPropertyValue(propName),
+      setScrollAreaStyleProperty: (prop, value) =>
+          this.area_.style.setProperty(prop, value),
+      setScrollContentStyleProperty: (prop, value) =>
+          this.content_.style.setProperty(prop, value),
+      getScrollContentStyleValue: (propName) =>
+          window.getComputedStyle(this.content_).getPropertyValue(propName),
       setScrollAreaScrollLeft: (scrollX) => this.area_.scrollLeft = scrollX,
       getScrollAreaScrollLeft: () => this.area_.scrollLeft,
       getScrollContentOffsetWidth: () => this.content_.offsetWidth,
       getScrollAreaOffsetWidth: () => this.area_.offsetWidth,
       computeScrollAreaClientRect: () => this.area_.getBoundingClientRect(),
-      computeScrollContentClientRect: () => this.content_.getBoundingClientRect(),
-      computeHorizontalScrollbarHeight: () => util.computeHorizontalScrollbarHeight(document),
+      computeScrollContentClientRect: () =>
+          this.content_.getBoundingClientRect(),
+      computeHorizontalScrollbarHeight: () =>
+          util.computeHorizontalScrollbarHeight(document),
     };
     // tslint:enable:object-literal-sort-keys
     return new MDCTabScrollerFoundation(adapter);
@@ -98,7 +107,7 @@ export class MDCTabScroller extends MDCComponent<MDCTabScrollerFoundation> {
    * Returns the current visual scroll position
    */
   getScrollPosition(): number {
-    return this.foundation_.getScrollPosition();
+    return this.foundation.getScrollPosition();
   }
 
   /**
@@ -113,7 +122,7 @@ export class MDCTabScroller extends MDCComponent<MDCTabScrollerFoundation> {
    * @param scrollXIncrement The pixel value by which to increment the scroll value
    */
   incrementScroll(scrollXIncrement: number) {
-    this.foundation_.incrementScroll(scrollXIncrement);
+    this.foundation.incrementScroll(scrollXIncrement);
   }
 
   /**
@@ -121,6 +130,6 @@ export class MDCTabScroller extends MDCComponent<MDCTabScrollerFoundation> {
    * @param scrollX The pixel value to scroll to
    */
   scrollTo(scrollX: number) {
-    this.foundation_.scrollTo(scrollX);
+    this.foundation.scrollTo(scrollX);
   }
 }
